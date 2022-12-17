@@ -1,0 +1,126 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <unistd.h>
+
+const char socket_name[]="./communication_channel";
+
+
+
+const int name_length = 100;
+const int surname_length = 100;
+const int number_length = 30;
+char msg[100];
+
+int i = 0;
+int j = 0;
+char* matrix[100][3];
+
+int main(int argc, char *argv[]){
+    
+    int temp;
+    int stop_server = 0;
+    int data_socket;
+    int connection_socket;
+    struct sockaddr_un addr;
+
+    char instruction[25];
+    char name[name_length];
+    char surname[surname_length];
+    char number[number_length];
+
+    //Socket creation
+    connection_socket = socket(AF_UNIX, SOCK_SEQPACKET, 0);
+    if(connection_socket == -1){
+        perror("socket");
+        exit(EXIT_FAILURE);
+    }
+
+    //Adress structure initialized to 0
+    memset(&addr, 0, sizeof(struct sockaddr_un));
+
+    addr.sun_family = AF_UNIX;
+    strncpy(addr.sun_path, socket_name, sizeof(addr.sun_path) - 1);
+    
+
+
+    //Bind the name and type, and create a nwe file
+
+    temp = bind(connection_socket, (const struct sockaddr *) &addr, sizeof(struct sockaddr_un));
+    if (temp == -1){
+        perror("binding");
+        exit(-1);
+    }
+
+    // Configuration for waiting of the clients - up to 2 in the queue
+    temp = listen(connection_socket, 0);
+    if (temp == -1) {
+        perror("listen");
+        exit(-1);
+    }
+
+    // Loop for waiting on the clients to connect
+
+    while(!stop_server){
+        // We wait for a client, we obtain a new socket for a communication with it
+
+        printf("Waiting for the client ...\n");
+        data_socket = accept(connection_socket, NULL, NULL);
+            if (data_socket == -1) {
+                perror("accept");
+                exit(-1);
+            }
+        // Loop for a communication with a single client
+        while(1){
+            // Wait for message
+            printf("Reading the message ...\n");
+            temp = read(data_socket, msg, 100);
+                if (temp == -1) {
+                    perror("read");
+                    exit(-1);
+                }
+                if (temp == 0){
+                    break;
+                }
+            
+            if (strcmp(msg, "./phonebook_add") == 0){
+                 for(int k = 0; k <=2; k++){
+                    temp = read(data_socket, msg, 100);
+                    if (temp == -1) {
+                        perror("read");
+                        exit(-1);
+                    }
+                    if (temp == 0){
+                        break;
+                    }
+            
+                    msg[temp] = 0;
+                    matrix[i][j] = msg;
+                    printf("matriu[%d][%d] %s \n\n", i, j, matrix[i][j]);
+                    j++;
+                    // Response with *
+                    temp = write(data_socket, "New number added succesfully. \n\n", 33);
+                    if (temp == -1) {
+                        perror("write");
+                        exit(-1);
+                    }
+                }
+                i++;
+               
+            } 
+            break;                       
+        }    
+    }
+
+    // Close and erase the socket for establishing the connection
+    close(connection_socket);
+    unlink(socket_name);
+
+    exit(-1);
+        
+    
+
+}
+
